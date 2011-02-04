@@ -1,0 +1,76 @@
+Chord
+===========
+
+Swiftcore::Chord
+
+This is an implementation of the Chord protocol, a description of which
+can be found here:
+  http://pdos.csail.mit.edu/chord/papers/chord.pdf
+  http://pdos.csail.mit.edu/chord/papers/paper-ton.pdf
+  http://en.wikipedia.org/wiki/Chord_%28peer-to-peer%29
+
+The implementation is based on the psuedocode and implementation suggestions
+in the MIT papers, but it has some modifications.
+
+As it stands currently, nodes can balance their workload with their
+successor. It currently does this by comparing its workload to the load
+of the successor. If the successor has a sufficiently larger load, as
+determined by the Swiftcore::Chord::Node#calculate_allowable_difference
+method, then the node will advance its ID, and thus, the keyspace that it
+is responsible for, towards that of its successor. It then tells its
+successor to reallocate data that lies in the new keyspace to it.
+
+By only moving towards a successor, without ever changing relative
+positions, changing a node's id/keyspace coverage doesn't harm the ability
+of the the chord to find the data in any given node, and the balancing
+algorithm will eventually result in well distributed nodes, even as data
+changes and nodes are added or removed from the chord.
+
+Features
+--------
+
+
+
+Examples
+--------
+
+
+Requirements
+------------
+
+
+Install
+-------
+
+
+Author
+------
+
+Kirk Haines (wyhaines@gmail.com)
+
+
+License
+-------
+
+(The MIT License) FIXME (different license?)
+
+Copyright (c) 2011 Kirk Haines
+
+Permission is hereby granted, free of charge, to any person obtaining
+a copy of this software and associated documentation files (the
+'Software'), to deal in the Software without restriction, including
+without limitation the rights to use, copy, modify, merge, publish,
+distribute, sublicense, and/or sell copies of the Software, and to
+permit persons to whom the Software is furnished to do so, subject to
+the following conditions:
+
+The above copyright notice and this permission notice shall be
+included in all copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED 'AS IS', WITHOUT WARRANTY OF ANY KIND,
+EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
+IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY
+CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
+TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
+SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
