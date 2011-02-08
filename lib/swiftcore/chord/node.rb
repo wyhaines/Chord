@@ -106,11 +106,10 @@ module Swiftcore
       def join(node)
         s = node.find_predecessor(@nodeid)
         p = nil
-        loop do
+        begin
           p = s
           s = p.successor
-          break if between_left_inclusive(@nodeid, p.nodeid, s.nodeid)
-        end
+        end until between_left_inclusive(@nodeid, p.nodeid, s.nodeid)
 
         acquire_successors(s)
         @predecessor = p
