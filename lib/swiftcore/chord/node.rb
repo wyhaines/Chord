@@ -15,7 +15,12 @@ module Swiftcore
       attr_reader :nodeid, :name, :successors, :finger_table
       attr_accessor :data, :predecessor
 
-      def initialize(id)
+      def initialize(args)
+        if Hash === args
+          id = args[:id]
+        else
+          id = args
+        end
         @name = id
         id_hash = Digest::SHA256.new
         id_hash << id
