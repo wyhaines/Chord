@@ -30,6 +30,7 @@ module Swiftcore
         @successors = SuccessorList.new
         @successors << self
         @data = {}
+        @connected_nodes = {}
         @finger_table = []
         @finger_table_index = 0
         @successor_queue_depth = 3 # TODO: make this configurable

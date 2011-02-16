@@ -14,7 +14,7 @@ module Swiftcore
     # members of the chord via a given protocol (TCP or Unix sockets), and
     # socket identifier.
     class NetworkedNode < Node
-      include Pid
+      include EMRPC::Pid
 
       #####
       # Create a new, networked Chord Node.
@@ -24,16 +24,30 @@ module Swiftcore
       #   host:
       #   port:
       def initialize(args = {:uri => 'emrpc://127.0.0.1:0'})
-        args[:uri] = '' unless args.has_key?(:uri)
+        # TODO: This is all broken for unix sockets. Fix that.
+        if Hash === args
+          args[:uri] = '' unless args.has_key?(:uri)
+        else
+          args = {:uri => args}
+        end
+
         u = URI.parse(args[:uri])
-        s = URI.scheme
-        h = URI.host
-        p = URI.port
+        s = u.scheme
+        h = u.host
+        p = u.port
         @scheme = args[:scheme] || s || 'emrpc'
         @host = args[:host] || h || '127.0.0.1'
         @port = args[:port] || p || 0
         @uri = "#{@scheme}://#{@host}:#{@port}"
-        super(@uri)
+
+        if EventMachine.reactor_running?
+          bind(@uri)
+          _,actual_port = socket_information
+          @uri.sub(/\d+$/,actual_port)
+          super(@uri) # Calls Pid #initialize, which will call Node #initialize
+        else
+          raise "The EventMachine reactor was not running."
+        end
       end
 
     end

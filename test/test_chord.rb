@@ -1,6 +1,7 @@
 require 'test/unit'
 require 'benchmark'
 require 'swiftcore/chord'
+require 'swiftcore/chord/networked_node'
 
 class Client
   attr_accessor :cid
@@ -108,15 +109,28 @@ class TestChord < Test::Unit::TestCase
     sorted_nodes = @nodes.sort {|a,b| a.nodeid.to_i(16) <=> b.nodeid.to_i(16)}
     sorted_nodes.each {|n| counts << n.data.count}; nil
     std_dev = standard_deviation(counts)
-    puts "\nStandard deviation of data before balancing: #{std_dev} (should be around 1350-1460)"
+    puts "\nStandard deviation of data distribution between nodes before balancing: #{std_dev} (should be around 1350-1460)"
     assert((std_dev >= 1350 && std_dev <= 1460), "Hmmm. There seems to be more variation in the data distribution for the unbalanced chord than was expected.")
 
     1000.times {sorted_nodes[Integer(rand(sorted_nodes.length))].balance_workload}
     counts = []
     sorted_nodes.each {|n| counts << n.data.count}; nil
     std_dev = standard_deviation(counts)
-    puts "Standard deviation of data after balancing: #{std_dev} (should be less than about 12)"
+    puts "Standard deviation of data distribution between nodes after balancing: #{std_dev} (should be less than about 12)"
     assert(std_dev <= 12, "Hmmm. There seems to be more variation in the data distribution for the unbalanced chord than was expected.")
+  end
+
+  def test_node_networked
+    assert_raise(RuntimeError) do
+      @chord = Swiftcore::Chord.new(Swiftcore::Chord::NetworkedNode, 'emrpc://127.0.0.1:4002')
+    end
+
+    # Here is where it gets fun. Tests that need the EM reactor to run are tricksy.
+    EventMachine.run do
+      EventMachine::Timer.new(5) {EventMachine.stop_event_loop}
+      @chord = Swiftcore::Chord.new(Swiftcore::Chord::NetworkedNode, 'emrpc://127.0.0.1:0')
+      EventMachine::Timer.new(2) {puts @chord.origin.socket_information.inspect}
+    end
   end
 
   def standard_deviation(values)

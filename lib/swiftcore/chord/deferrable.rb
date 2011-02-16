@@ -5,7 +5,8 @@ require 'em/deferrable'
 
 module Swiftcore
   class Chord
-    class Deferrable < EventMachine::Deferrable
+    class Deferrable
+      include EventMachine::Deferrable
 
       def callbacks
         (@callbacks ||= []) && @callbacks

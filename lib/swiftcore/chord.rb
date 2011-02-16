@@ -44,7 +44,13 @@ module Swiftcore
     attr_reader :origin
 
     def initialize(*args)
-      @origin = Node.new(*args)
+      if Class === args.first
+        klass = args.first
+        args = args.slice(1..-1)
+      else
+        klass = Node
+      end
+      @origin = klass.new(*args)
     end
 
     # Joins the given node to the chord.
