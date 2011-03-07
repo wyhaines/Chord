@@ -1,7 +1,7 @@
 require 'test/unit'
 require 'benchmark'
 require 'swiftcore/chord'
-require 'swiftcore/chord/networked_node'
+require 'swiftcore/chord/fibrous_node'
 
 class Client
   attr_accessor :cid
@@ -62,9 +62,10 @@ class TestChord < Test::Unit::TestCase
     assert_same(nodes[1], found_node)
   end
   
-  def add_node
+  def add_node(klass = Swiftcore::Chord::Node, *args)
     @key = @key.succ
-    node = Swiftcore::Chord::Node.new(@key)
+    args.unshift @key
+    node = klass.new(*args)
     @nodes << node
     node.join(@chord.origin)
   end
@@ -122,14 +123,23 @@ class TestChord < Test::Unit::TestCase
 
   def test_node_networked
     assert_raise(RuntimeError) do
-      @chord = Swiftcore::Chord.new(Swiftcore::Chord::NetworkedNode, 'emrpc://127.0.0.1:4002')
+      @chord = Swiftcore::Chord.new(Swiftcore::Chord::FibrousNode, 'emrpc://127.0.0.1:4002')
     end
 
     # Here is where it gets fun. Tests that need the EM reactor to run are tricksy.
     EventMachine.run do
       EventMachine::Timer.new(5) {EventMachine.stop_event_loop}
-      @chord = Swiftcore::Chord.new(Swiftcore::Chord::NetworkedNode, 'emrpc://127.0.0.1:0')
-      EventMachine::Timer.new(2) {puts @chord.origin.socket_information.inspect}
+      @chord = Swiftcore::Chord.new(Swiftcore::Chord::FibrousNode, 'emrpc://127.0.0.1:0')
+      EventMachine::Timer.new(2) do
+        puts "origin: #{@chord.origin.uri} (#{Time.now})"
+        node = Swiftcore::Chord::FibrousNode.new('emrpc://127.0.0.1:0')
+        puts "origin: #{@chord.origin.uri} (#{Time.now})"
+        node.join(@chord.origin.uri)
+        EM::Timer.new(1) do
+          puts "=====\n#{node.connections.inspect}\n*****"
+          puts node.uuid
+        end
+      end
     end
   end
 
