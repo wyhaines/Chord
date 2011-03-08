@@ -12,8 +12,8 @@ module Swiftcore
       # TODO: In several places the finger table is scanned in a linear manner.
       # TODO: Investigate changing these linear scans to binary searches.
       # TODO: This should result in fewer calculations in order to find the condition being scanned for.
-      attr_reader :nodeid, :name, :successors, :finger_table
-      attr_accessor :data, :predecessor
+      attr_reader :nodeid, :name, :successors, :finger_table, :uuid
+      attr_accessor :data, :predecessor, :connections
 
       def initialize(args)
         if Hash === args
@@ -30,7 +30,7 @@ module Swiftcore
         @successors = SuccessorList.new
         @successors << self
         @data = {}
-        @connected_nodes = {}
+        @connections = {}
         @finger_table = []
         @finger_table_index = 0
         @successor_queue_depth = 3 # TODO: make this configurable
@@ -48,7 +48,7 @@ module Swiftcore
         # a race condition because a given successor may die in the midst of
         # an operation that utilizes it. So, error handling within the
         # methods below is probably the superior option.
-        @successors.last
+        @successors.last # RPC
       end
 
       # Given an ID, figure out which node should be the predecessor to that ID.
@@ -57,8 +57,8 @@ module Swiftcore
           self
         else
           pred = self
-          while !between_left_inclusive(id, pred.nodeid, pred.successor.nodeid)
-            pred = pred.closest_preceding_node(id)
+          while !between_left_inclusive(id, pred.nodeid, pred.successor.nodeid) # RPC
+            pred = pred.closest_preceding_node(id) # RPC
           end
           pred
         end
@@ -77,7 +77,7 @@ module Swiftcore
 
       def find_successor(id)
         # First determine if it is between this node and its successor.
-        if between_right_inclusive(id, @nodeid, successors.nodeid)
+        if between_right_inclusive(id, @nodeid, successors.nodeid) # RPC
           # If it is, this node's successor is the successor of id
           successor
         else
@@ -87,19 +87,12 @@ module Swiftcore
           # TODO: Change this to an iterative search? It's more ugly,
           # but iteration is more efficient that recursion in Ruby.
           np = closest_preceding_node(id)
-          np.find_successor(id)
+          np.find_successor(id) # RPC
         end
       end
 
-      def find_successor_x(id)
-        # Find the closest preceding node to id. It's successor will be
-        # the node that we want.
-        np = find_predecessor(id)
-        np.successor
-      end
-
       def acquire_successors(node)
-        my_successors = node.successors.clone
+        my_successors = node.successors.clone # RPC
         my_successors.shift if my_successors.length == @successor_queue_depth
         my_successors.push node
         @successors = my_successors
@@ -110,21 +103,21 @@ module Swiftcore
       # node stabilize()s for the first time, news of its existence will start to
       # propagate, and the node will become part of the Chord.
       def join(node)
-        s = node.find_predecessor(@nodeid)
+        s,_ = node.find_predecessor(@nodeid) # RPC
         p = nil
         begin
           p = s
-          s = p.successor
-        end until between_left_inclusive(@nodeid, p.nodeid, s.nodeid)
+          s = p.successor # RPC
+        end until between_left_inclusive(@nodeid, p.nodeid, s.nodeid) # RPC
 
         acquire_successors(s)
         @predecessor = p
-        s.receive_notification(self)
-        p.receive_notification(self) unless s == p
+        s.receive_notification(self) # RPC
+        p.receive_notification(self) unless s == p # RPC
         initialize_finger_table(s)
         stabilize
         notify
-        s.reallocate_data(p.nodeid, self)
+        s.reallocate_data(p.nodeid, self) # RPC
       end
 
       def receive_notification(node)
@@ -368,6 +361,31 @@ module Swiftcore
         (((Integer("0x#{node_id}") - (1 << (bit_position - 1))) + 1) & KeyBitMask).to_s(16)
       end
 
+      # Call a method on another node, setting up a block
+      # to receive the result of that method invocation.
+      def invoke_on(node, meth, *args)
+        signature = Swiftcore::Chord::UUID.generate
+        @invocation_callbacks[signature] = Fiber.current
+        EM.next_tick do
+          node.on_invocation(self, signature, meth, *args)
+        end
+        Fiber.yield
+      end
+
+      # This receives a method invocation from another node, calls it, and then
+      # makes sure that the result gets sent back in such a way that the sender
+      # can deal with it.
+      def on_invocation(sender, signature, meth, *args)
+        Fiber.new do
+          result = self.__send__(meth, *args)
+          sender.finish_invocation(signature, result)
+        end.resume
+      end
+
+      # This receives the result of an invocation and calls the pending block.
+      def finish_invocation(signature, result)
+        @invocation_callbacks.delete(signature).transfer(result) if @invocation_callbacks.has_key?(signature)
+      end
     end
   end
 end

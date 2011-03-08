@@ -26,7 +26,7 @@ module Swiftcore
     class SetCallbackFailed < Exception;
     end
 
-    class Synapse
+    class ConditionalDeferrable
       include Swiftcore::Chord::Deferrable
 
       def [](key)

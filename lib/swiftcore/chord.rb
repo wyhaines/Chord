@@ -1,5 +1,6 @@
 require "digest/sha2"
 require 'swiftcore/chord/node'
+require 'swiftcore/chord/uuid'
 
 module Swiftcore
 

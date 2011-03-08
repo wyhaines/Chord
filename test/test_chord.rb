@@ -28,7 +28,7 @@ end
 
 class TestChord < Test::Unit::TestCase
 
-  def test_chord
+  def _test_chord
     chord = nil
     nodes = []
 
@@ -62,21 +62,19 @@ class TestChord < Test::Unit::TestCase
     assert_same(nodes[1], found_node)
   end
   
-  def add_node(klass = Swiftcore::Chord::Node, *args)
-    @key = @key.succ
-    args.unshift @key
+  def add_node(klass, *args)
     node = klass.new(*args)
     @nodes << node
     node.join(@chord.origin)
   end
 
-  def test_node
+  def _test_node
     @key = 'a'
-    @chord = Swiftcore::Chord.new(@key)
+    @chord = Swiftcore::Chord.new(@key.dup)
     @nodes = [@chord.origin]
 
     # Build a nominally functional ring
-    6.times { add_node }
+    6.times { add_node(Swiftcore::Chord::Node, @key.succ!.dup) }
 
     sorted_nodes = @nodes.sort {|a,b| a.nodeid.to_i(16) <=> b.nodeid.to_i(16)}
 
@@ -100,7 +98,7 @@ class TestChord < Test::Unit::TestCase
       sorted_nodes[5].find_predecessor("ca978112ca1bbdcafac231b39a23dc4da786eff8147c4e72b9807785afee48ba").name,
       sorted_nodes[2].find_predecessor("ca978112ca1bbdcafac231b39a23dc4da786eff8147c4e72b9807785afee48ba").name)
 
-    add_node
+    add_node(Swiftcore::Chord::Node, @key.succ!.dup)
     
     sorted_nodes = @nodes.sort {|a,b| a.nodeid.to_i(16) <=> b.nodeid.to_i(16)}
     names_in_sorted_order = sorted_nodes.collect {|n| n.name}
@@ -122,24 +120,42 @@ class TestChord < Test::Unit::TestCase
   end
 
   def test_node_networked
-    assert_raise(RuntimeError) do
-      @chord = Swiftcore::Chord.new(Swiftcore::Chord::FibrousNode, 'emrpc://127.0.0.1:4002')
-    end
 
     # Here is where it gets fun. Tests that need the EM reactor to run are tricksy.
     EventMachine.run do
-      EventMachine::Timer.new(5) {EventMachine.stop_event_loop}
+      EventMachine::Timer.new(10) {EventMachine.stop_event_loop}
       @chord = Swiftcore::Chord.new(Swiftcore::Chord::FibrousNode, 'emrpc://127.0.0.1:0')
+      @nodes = [@chord.origin]
+
       EventMachine::Timer.new(2) do
-        puts "origin: #{@chord.origin.uri} (#{Time.now})"
-        node = Swiftcore::Chord::FibrousNode.new('emrpc://127.0.0.1:0')
-        puts "origin: #{@chord.origin.uri} (#{Time.now})"
-        node.join(@chord.origin.uri)
-        EM::Timer.new(1) do
-          puts "=====\n#{node.connections.inspect}\n*****"
-          puts node.uuid
+        6.times { puts "vvvvvvvvvv";add_node(Swiftcore::Chord::FibrousNode, 'emrpc://127.0.0.1:0'); puts '^^^^^^^^^^' }
+
+        EM::Timer.new(3) do
+          Fiber.new do
+            puts "\bBenchmarking insertion of 10000 random data items into the chord"
+            #Benchmark.bm {|bm| bm.report {10.times {n = Client.new; @nodes.first.find_successor(n.cid.to_s)[n.cid.to_s] = n} }}
+            n = nil
+            clients = []
+            Benchmark.bm {|bm| bm.report {10000.times {n = Client.new; clients << n; @nodes.first.find(n.cid.to_s)[n.cid.to_s] = n } }}
+  puts "#{n} ---------------- #{@nodes.first.find(n.cid.to_s)[n.cid.to_s].inspect} #{@nodes.first.find(n.cid.to_s)[n.cid.to_s].cid}"
+  puts "#{clients[5000]} ---------------- #{@nodes.first.find(clients[5000].cid.to_s)[clients[5000].cid.to_s].inspect} #{@nodes.first.find(clients[5000].cid.to_s)[clients[5000].cid.to_s].cid}"
+  puts "#{clients[2000]} ---------------- #{@nodes.first.find(clients[2000].cid.to_s)[clients[2000].cid.to_s].inspect} #{@nodes.first.find(clients[2000].cid.to_s)[clients[2000].cid.to_s].cid}"
+
+            EM::Timer.new(1) do
+              puts "=====\n#{@chord.origin.connections.inspect}\n*****"
+              puts @chord.origin.uuid
+              setup_stop
+            end
+          end.resume
+          
         end
       end
+    end
+  end
+
+  def setup_stop
+    EM::Timer.new(1) do
+      EM.stop_event_loop
     end
   end
 
