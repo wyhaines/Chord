@@ -35,8 +35,8 @@ module Swiftcore
           bind(@uri)
           _,actual_port = socket_information
           @uri.sub(/\d+$/,actual_port)
+          @uri = @name = create_full_uri({:uri => @uri, :port => socket_information[0] })
           super(@uri) # Calls Pid #initialize, which will call Node #initialize
-          @uri = create_full_uri({:uri => @uri, :port => socket_information[0] })
         else
           raise "The EventMachine reactor was not running."
         end
