@@ -1,0 +1,22 @@
+PATH
+  remote: .
+  specs:
+    chord (0.1.0)
+
+GEM
+  remote: https://rubygems.org/
+  specs:
+    minitest (5.8.1)
+    rake (10.4.2)
+
+PLATFORMS
+  ruby
+
+DEPENDENCIES
+  bundler (~> 1.10)
+  chord!
+  minitest
+  rake (~> 10.0)
+
+BUNDLED WITH
+   1.10.6

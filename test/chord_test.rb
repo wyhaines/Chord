@@ -1,7 +1,4 @@
-require 'test/unit'
-require 'benchmark'
-require 'swiftcore/chord'
-#require 'swiftcore/chord/fibrous_node'
+require 'test_helper'
 
 # This is just an essentially random object used for benchmarking.
 class Client
@@ -27,38 +24,33 @@ class Client
 
 end
 
-class TestChord < Test::Unit::TestCase
+class ChordTest < Minitest::Test
+  def test_that_it_has_a_version_number
+    refute_nil ::Chord::VERSION
+  end
 
   def test_chord
     chord = nil
     nodes = []
 
-    assert_nothing_raised do
-      chord = Swiftcore::Chord.new('a')
-      nodes << chord.origin
-    end
+    chord = Chord.new('a')
+    nodes << chord.origin
 
-    assert_equal(chord.class, Swiftcore::Chord)
+    assert_equal(chord.class, Chord)
 
-    assert_equal(chord.origin.class, Swiftcore::Chord::Node)
+    assert_equal(chord.origin.class, Chord::Node)
 
-    assert_nothing_raised do
-      node = Swiftcore::Chord::Node.new('b')
-      nodes << node
-      chord.join(node)
-    end
+    node = Chord::Node.new('b')
+    nodes << node
+    chord.join(node)
 
     found_node = nil
 
-    assert_nothing_raised do
-      found_node = chord.query("ca978112ca1bbdcafac231b39a23dc4da786eff8147c4e72b9807785afee48ba")
-    end
+    found_node = chord.query("ca978112ca1bbdcafac231b39a23dc4da786eff8147c4e72b9807785afee48ba")
 
     assert_same(nodes[0],found_node)
 
-    assert_nothing_raised do
-      found_node = chord.query("3e23e8160039594a33894f6564e1b1348bbd7a0088d42c4acb73eeaed59c009c")
-    end
+    found_node = chord.query("3e23e8160039594a33894f6564e1b1348bbd7a0088d42c4acb73eeaed59c009c")
 
     assert_same(nodes[1], found_node)
   end
@@ -70,11 +62,11 @@ class TestChord < Test::Unit::TestCase
   end
 
   def nominally_functional_ring(key,ring_size = 6)
-    chord = Swiftcore::Chord.new(key.dup)
+    chord = Chord.new(key.dup)
     nodes = [chord.origin]
 
     # Build a nominally functional ring
-    ring_size.times { add_node(nodes, chord, Swiftcore::Chord::Node, key.succ!.dup) }
+    ring_size.times { add_node(nodes, chord, Chord::Node, key.succ!.dup) }
     [chord, nodes]
   end
 
@@ -101,19 +93,19 @@ class TestChord < Test::Unit::TestCase
     end
 
     # Node#successor
-    assert_equal(sorted_nodes[0].successor.class, Swiftcore::Chord::Node)
+    assert_equal(sorted_nodes[0].successor.class, Chord::Node)
     assert_same(sorted_nodes[0].successor, sorted_nodes[1])
     assert_same(sorted_nodes[6].successor, sorted_nodes[0])
 
     # Node#successors
-    assert_equal(sorted_nodes[0].successors.class, Swiftcore::Chord::SuccessorList)
+    assert_equal(sorted_nodes[0].successors.class, Chord::SuccessorList)
 
     # Node#find_predecessor
     assert_equal(
       sorted_nodes[5].find_predecessor("ca978112ca1bbdcafac231b39a23dc4da786eff8147c4e72b9807785afee48ba").name,
       sorted_nodes[2].find_predecessor("ca978112ca1bbdcafac231b39a23dc4da786eff8147c4e72b9807785afee48ba").name)
 
-    add_node(nodes, chord, Swiftcore::Chord::Node, key.succ!.dup)
+    add_node(nodes, chord, Chord::Node, key.succ!.dup)
     
     sorted_nodes = nodes.sort {|a,b| a.nodeid.to_i(16) <=> b.nodeid.to_i(16)}
     names_in_sorted_order = sorted_nodes.collect {|n| n.name}
@@ -133,11 +125,11 @@ class TestChord < Test::Unit::TestCase
 #    # Here is where it gets fun. Tests that need the EM reactor to run are tricksy.
 #    EventMachine.run do
 #      EventMachine::Timer.new(10) {EventMachine.stop_event_loop}
-#      @chord = Swiftcore::Chord.new(Swiftcore::Chord::FibrousNode, 'emrpc://127.0.0.1:0')
+#      @chord = Chord.new(Chord::FibrousNode, 'emrpc://127.0.0.1:0')
 #      @nodes = [@chord.origin]
 #
 #      EventMachine::Timer.new(2) do
-#        6.times { puts "vvvvvvvvvv";add_node(Swiftcore::Chord::FibrousNode, 'emrpc://127.0.0.1:0'); puts '^^^^^^^^^^' }
+#        6.times { puts "vvvvvvvvvv";add_node(Chord::FibrousNode, 'emrpc://127.0.0.1:0'); puts '^^^^^^^^^^' }
 #
 #        EM::Timer.new(3) do
 #          Fiber.new do
@@ -178,4 +170,5 @@ class TestChord < Test::Unit::TestCase
     values.each {|v| variance += (v - mean)**2}
     Math.sqrt(variance / values.length)
   end
+
 end
